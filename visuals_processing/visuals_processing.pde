@@ -4,7 +4,7 @@ import processing.serial.*;
 Serial myPort;
 
 String data="";
-float roll, pitch, value;
+float roll, pitch, value, flex;
 
 //sound
 SoundFile sound;
@@ -19,10 +19,11 @@ boolean soundLoaded = false;
 final int ARDUINO_ROLL = 0;
 final int ARDUINO_PITCH = 1;
 final int ARDUINO_VALUE = 2;
-
+final int ARDUINO_FLEX = 3;
 int pitchMode = ARDUINO_ROLL;
 int reverbMode = ARDUINO_PITCH;
 int heightMode = ARDUINO_VALUE;
+int flexMode = ARDUINO_FLEX;
 
 // =========================
 // SLIDERS
@@ -34,14 +35,14 @@ void setup() {
   size(1200, 800);
   textFont(createFont("Arial", 16));
 
-  //myPort = new Serial(this, "COM6", 9600); // starts the serial communication
-  //myPort.bufferUntil('\n');
+  myPort = new Serial(this, "COM6", 9600); // starts the serial communication
+  myPort.bufferUntil('\n');
 
-  println(Serial.list());
-  if (Serial.list().length > 0) {
-    myPort = new Serial(this, Serial.list()[0], 9600);
-    myPort.bufferUntil('\n');
-  }
+  //println(Serial.list());
+  //if (Serial.list().length > 0) {
+    //myPort = new Serial(this, Serial.list()[0], 9600);
+    //myPort.bufferUntil('\n');
+  //}
 
 
   slider1 = new Slider(650, 150, 400);
@@ -60,7 +61,7 @@ void draw() {
   // APPLY INPUT MODES
   slider1.value = getInputValue(pitchMode);
   slider2.value = getInputValue(reverbMode);
-  slider3.value = getInputValue(heightMode);
+  slider3.value = getInputValue(flexMode);
 
   if (soundLoaded && sound != null && reverb != null) {
 
@@ -96,6 +97,8 @@ float getInputValue(int mode) {
     return map(pitch, -90, 90, -100, 100);
   } else if (mode == ARDUINO_VALUE) {
     return constrain(value, -100, 100);
+  } else if (mode == ARDUINO_FLEX) {
+    return flex;
   }
   return 0;
 }
@@ -116,6 +119,7 @@ void serialEvent (Serial myPort) {
       roll = float(items[0]);
       pitch = float(items[1]);
       value = float(items[2]);
+      flex = float(items[3]);
     }
   }
 }
@@ -134,7 +138,7 @@ void drawTitle() {
 void drawLeftPanel() {
   drawModeBox(160, 120, "Pitch", pitchMode);
   drawModeBox(160, 200, "Reverb", reverbMode);
-  drawModeBox(160, 280, "Bass", heightMode);
+  drawModeBox(160, 280, "Bass", flexMode);
   drawSoundButton(160, 360);
 }
 
@@ -153,6 +157,7 @@ String getModeName(int mode) {
   if (mode == ARDUINO_ROLL) return "ROLL";
   if (mode == ARDUINO_PITCH) return "PITCH";
   if (mode == ARDUINO_VALUE) return "BUTTON";
+  if (mode == ARDUINO_FLEX) return "FLEX";
   return "NONE";
 }
 
@@ -279,9 +284,9 @@ void drawWaveform(int x, int y, int w, int h) {
 void mousePressed() {
   // cycle modes on click
 
-  if (overBox(50, 120)) pitchMode = (pitchMode + 1) % 3;
-  if (overBox(50, 200)) reverbMode = (reverbMode + 1) % 3;
-  if (overBox(50, 280)) heightMode = (heightMode + 1) % 3;
+  if (overBox(50, 120)) pitchMode = (pitchMode + 1) % 4;
+  if (overBox(50, 200)) reverbMode = (reverbMode + 1) % 4;
+  if (overBox(50, 280)) flexMode = (flexMode + 1) % 4;
 
   if (overSoundButton(160, 360)) {
     selectInput("Select a sound file", "fileSelected");

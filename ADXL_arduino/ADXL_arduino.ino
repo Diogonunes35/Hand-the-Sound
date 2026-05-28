@@ -1,7 +1,4 @@
-/*
-    Arduino and ADXL345 Accelerometer - 3D Visualization Example 
-     by Dejan, https://howtomechatronics.com
-*/
+
 #include <Wire.h>  // Wire library - used for I2C communication
 
 int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
@@ -9,8 +6,13 @@ int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
 float X_out, Y_out, Z_out;  // Outputs
 float roll, pitch, rollF, pitchF = 0;
 
-//botões
-const int BT_PIN1 = 2;
+//flex Sensor
+const int FLEX_PIN = A0;
+int straightValue = 0;
+int bentValue = 0;
+
+//Botões
+const int BT_PIN1 = 4;
 const int BT_PIN2 = 3;
 
 int btState1;  // variable for reading the pushbutton status
@@ -23,10 +25,6 @@ const unsigned long debounceDelay1 = 50;
 
 unsigned long lastDebounceTime2 = 0;
 const unsigned long debounceDelay2 = 50;
-
-unsigned long lastRepeatTime1 = 0;
-unsigned long lastRepeatTime2 = 0;
-const unsigned long repeatInterval = 80;
 
 int value = 0;
 
@@ -63,6 +61,45 @@ void setup() {
   Wire.endTransmission();
   delay(10);
 
+  //Flex Sensor
+  delay(1000);
+
+  Serial.println("=================================");
+  Serial.println(" FLEX SENSOR CALIBRATION ");
+  Serial.println("=================================");
+  Serial.println();
+
+  // -----------------------------
+  // CALIBRATE STRAIGHT POSITION
+  // -----------------------------
+  Serial.println("Keep finger STRAIGHT");
+  Serial.println("Calibration in 5 seconds...");
+  countdown();
+
+  straightValue = averageRead();
+
+  Serial.print("Straight value = ");
+  Serial.println(straightValue);
+
+  Serial.println();
+
+  Serial.println("Bend finger to 90 degrees");
+  delay(3500);
+
+  Serial.println("Calibration in 5 seconds...");
+  countdown();
+
+  bentValue = averageRead();
+
+  Serial.print("Bent value = ");
+  Serial.println(bentValue);
+
+  Serial.println();
+
+  Serial.println("Calibration complete!");
+  Serial.println();
+
+
   //botoes
   pinMode(BT_PIN1, INPUT_PULLUP);
   pinMode(BT_PIN2, INPUT_PULLUP);
@@ -94,7 +131,6 @@ void loop() {
     btState1 = reading1;
     if (btState1 == LOW) {
       value++;
-      lastRepeatTime1 = millis();
     }
   }
 
@@ -102,19 +138,7 @@ void loop() {
     btState2 = reading2;
     if (btState2 == LOW) {
       value--;
-      lastRepeatTime2 = millis();
     }
-  }
-
-  // Continuous repeat while the button remains pressed
-  if (btState1 == LOW && (millis() - lastRepeatTime1) >= repeatInterval) {
-    value++;
-    lastRepeatTime1 = millis();
-  }
-
-  if (btState2 == LOW && (millis() - lastRepeatTime2) >= repeatInterval) {
-    value--;
-    lastRepeatTime2 = millis();
   }
 
   value = constrain(value, -100, 100);
@@ -139,9 +163,48 @@ void loop() {
   rollF = 0.94 * rollF + 0.06 * roll;
   pitchF = 0.94 * pitchF + 0.06 * pitch;
 
+   // Read analog value from flex sensor
+  int flexValue = analogRead(FLEX_PIN);
+  flexValue = constrain(map(flexValue, bentValue, straightValue, -100, 100), -100, 100); //best values 175, 200
+  // Print value to Serial Monitor
+  //Serial.print("Flex Value: ");
+  // Small delay for readability
+  //delay(100);
+
   Serial.print(rollF);
   Serial.print("/");
   Serial.print(pitchF);
   Serial.print("/");
-  Serial.println(value);
+  Serial.print(value);
+  Serial.print("/");
+  Serial.println(flexValue);
+}
+
+// =====================================================
+// FUNCTIONS
+// =====================================================
+
+// Average multiple readings for stability
+int averageRead() {
+
+  int total = 0;
+
+  for (int i = 0; i < 15; i++) {
+
+    total += analogRead(FLEX_PIN);
+    delay(10);
+  }
+
+  return total = total / 15;
+}
+
+// Countdown timer
+void countdown() {
+
+  for (int i = 5; i > 0; i--) {
+
+    Serial.print(i);
+    Serial.println("...");
+    delay(1000);
+  }
 }
