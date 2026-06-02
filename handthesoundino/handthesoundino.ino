@@ -1,4 +1,3 @@
-
 #include <Wire.h>  // Wire library - used for I2C communication
 
 int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
@@ -11,14 +10,19 @@ const int FLEX_PIN = A0;
 int straightValue = 0;
 int bentValue = 0;
 
-//Botões
-const int BT_PIN1 = 4;
-const int BT_PIN2 = 3;
+//Botoes
+const int BT1_PIN = 4;
+const int BT2_PIN = 3;
 
-int btState1;  // variable for reading the pushbutton status
-int btState2;
+const unsigned long debounceDelay = 50;
+
+int btn1State;  // variable for reading the pushbutton status
+int btn2State;
 int lastReading1 = HIGH;
 int lastReading2 = HIGH;
+
+bool btn1Pressed = false;
+bool btn2Pressed = false;
 
 unsigned long lastDebounceTime1 = 0;  // the last time the button input changed
 const unsigned long debounceDelay1 = 50;
@@ -53,7 +57,6 @@ void setup() {
   Wire.write(-2);
   Wire.endTransmission();
   delay(10);
-
   //Z-axis
   Wire.beginTransmission(ADXL345);
   Wire.write(0x20);
@@ -62,32 +65,28 @@ void setup() {
   delay(10);
 
   //Flex Sensor
-  delay(1000);
+
+  delay(5000);
 
   Serial.println("=================================");
   Serial.println(" FLEX SENSOR CALIBRATION ");
   Serial.println("=================================");
   Serial.println();
 
-  // -----------------------------
-  // CALIBRATE STRAIGHT POSITION
-  // -----------------------------
-  Serial.println("Keep finger STRAIGHT");
-  Serial.println("Calibration in 5 seconds...");
-  countdown();
+  delay(1000);
+
+  Serial.println("Keep finger straight for...");
+  countdown(4);
 
   straightValue = averageRead();
 
   Serial.print("Straight value = ");
   Serial.println(straightValue);
-
   Serial.println();
 
-  Serial.println("Bend finger to 90 degrees");
-  delay(3500);
-
-  Serial.println("Calibration in 5 seconds...");
-  countdown();
+  Serial.println("Bend finger to 90 degrees for...");
+  delay(5000);
+  countdown(4);
 
   bentValue = averageRead();
 
@@ -101,47 +100,24 @@ void setup() {
 
 
   //botoes
-  pinMode(BT_PIN1, INPUT_PULLUP);
-  pinMode(BT_PIN2, INPUT_PULLUP);
-
-  // Initialize debouncing state with current readings
-  btState1 = digitalRead(BT_PIN1);
-  btState2 = digitalRead(BT_PIN2);
-  lastReading1 = btState1;
-  lastReading2 = btState2;
+  pinMode(BT1_PIN, INPUT_PULLUP);
+  pinMode(BT2_PIN, INPUT_PULLUP);
 }
 
 void loop() {
-  // Read raw button inputs
-  int reading1 = digitalRead(BT_PIN1);
-  int reading2 = digitalRead(BT_PIN2);
-
-  if (reading1 != lastReading1) {
-    lastDebounceTime1 = millis();
-    lastReading1 = reading1;
+  int reading1 = digitalRead(BT1_PIN);
+  if (reading1 == LOW && lastReading1 == HIGH || reading1 == HIGH && lastReading1 == LOW) {
+    btn1Pressed = !btn1Pressed;
+    delay(50);
   }
+  lastReading1 = reading1;
 
-  if (reading2 != lastReading2) {
-    lastDebounceTime2 = millis();
-    lastReading2 = reading2;
+  int reading2 = digitalRead(BT2_PIN);
+  if (reading2 == LOW && lastReading2 == HIGH || reading2 == HIGH && lastReading2 == LOW) {
+    btn2Pressed = !btn2Pressed;
+    delay(50);
   }
-
-  // Update stable debounced states
-  if ((millis() - lastDebounceTime1) > debounceDelay1 && reading1 != btState1) {
-    btState1 = reading1;
-    if (btState1 == LOW) {
-      value++;
-    }
-  }
-
-  if ((millis() - lastDebounceTime2) > debounceDelay2 && reading2 != btState2) {
-    btState2 = reading2;
-    if (btState2 == LOW) {
-      value--;
-    }
-  }
-
-  value = constrain(value, -100, 100);
+  lastReading2 = reading2;
 
   // === Read acceleromter data === //
   Wire.beginTransmission(ADXL345);
@@ -163,9 +139,9 @@ void loop() {
   rollF = 0.94 * rollF + 0.06 * roll;
   pitchF = 0.94 * pitchF + 0.06 * pitch;
 
-   // Read analog value from flex sensor
+  // Read analog value from flex sensor
   int flexValue = analogRead(FLEX_PIN);
-  flexValue = constrain(map(flexValue, bentValue, straightValue, -100, 100), -100, 100); //best values 175, 200
+  flexValue = constrain(map(flexValue, bentValue, straightValue, -100, 100), -100, 100);  //best values 175, 200
   // Print value to Serial Monitor
   //Serial.print("Flex Value: ");
   // Small delay for readability
@@ -175,7 +151,9 @@ void loop() {
   Serial.print("/");
   Serial.print(pitchF);
   Serial.print("/");
-  Serial.print(value);
+  Serial.print(btn1Pressed);
+  Serial.print("/");
+  Serial.print(btn2Pressed);
   Serial.print("/");
   Serial.println(flexValue);
 }
@@ -198,10 +176,9 @@ int averageRead() {
   return total = total / 15;
 }
 
-// Countdown timer
-void countdown() {
+void countdown(int seconds) {
 
-  for (int i = 5; i > 0; i--) {
+  for (int i = seconds; i > 0; i--) {
 
     Serial.print(i);
     Serial.println("...");
